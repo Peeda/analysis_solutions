@@ -420,17 +420,7 @@ theorem Nat.trichotomous (a b:Nat) : a < b ∨ a = b ∨ a > b := by
     rw [le_iff_lt_or_eq] at case1
     tauto
   . have why : a++ > b := by
-      rw [gt_iff_lt, lt_iff]
-      constructor
-      use 1
-      rw [add_comm b, one_add b]
-      exact congrArg succ case2
-      rw [case2]
-      have h: ∀ n:Nat, ¬ n = n++ := by
-        apply induction
-        push_neg; symm; apply succ_ne
-        intro n; contrapose!; apply succ_cancel
-      exact h b
+      rw [case2]; exact succ_gt_self b
     tauto
   have why : a++ > b := by
     rw [gt_iff_lt, lt_iff]
@@ -463,20 +453,32 @@ theorem Nat.trichotomous (a b:Nat) : a < b ∨ a = b ∨ a > b := by
 def Nat.decLe : (a b : Nat) → Decidable (a ≤ b)
   | 0, b => by
     apply isTrue
-    sorry
+    use b; rw [zero_add]
   | a++, b => by
     cases decLe a b with
     | isTrue h =>
       cases decEq a b with
       | isTrue h =>
         apply isFalse
-        sorry
-      | isFalse h =>
+        rw [h]
+        apply by_contra
+        push_neg; intro h1;
+        obtain ⟨k,h2⟩ := h1
+        rw [succ_add, ← add_succ] at h2
+        nth_rewrite 1 [← add_zero b] at h2
+        have := add_left_cancel b 0 (k++) h2
+        exact succ_ne k this.symm
+      | isFalse h1 =>
         apply isTrue
-        sorry
+        have : a < b := by
+          rw [lt_iff]; exact ⟨h, h1⟩
+        exact (Nat.lt_iff_succ_le a b).mp this
     | isFalse h =>
       apply isFalse
-      sorry
+      contrapose! h
+      have h1 := (Nat.lt_iff_succ_le a b).mpr h
+      rw [lt_iff] at h1
+      exact h1.left
 
 instance Nat.decidableRel : DecidableRel (· ≤ · : Nat → Nat → Prop) := Nat.decLe
 
@@ -536,20 +538,92 @@ example (a b c d e:Nat) (hab: a ≤ b) (hbc: b < c) (hde: d < e) :
 theorem Nat.strong_induction {m₀:Nat} {P: Nat → Prop}
   (hind: ∀ m, m ≥ m₀ → (∀ m', m₀ ≤ m' ∧ m' < m → P m') → P m) :
     ∀ m, m ≥ m₀ → P m := by
-  sorry
+  have h : ∀ n, ∀ m, (m₀ <= m ∧ m < n) -> P m := by
+    apply induction
+    · intro m; rintro ⟨h1, h2⟩
+      obtain ⟨leq_zero,neq_zero⟩ := h2
+      obtain ⟨k, h3⟩ := leq_zero
+      contrapose! neq_zero
+      exact (add_eq_zero m k h3.symm).left
+    intro n ih m mbounds
+    rcases trichotomous m n with m_lt | m_eq | m_gt
+    · exact ih m ⟨mbounds.left, m_lt⟩
+    · rcases trichotomous m m₀ with m_lt | mge
+      · have := mbounds.1
+        contrapose! this
+        exact m_lt
+      · have temp : m >= m₀ := by
+          contrapose! mge
+          exact ⟨mge.2, mge.1⟩
+        rw [← m_eq] at ih
+        exact hind m temp ih
+    · contrapose! m_gt
+      have := mbounds.2
+      rw [lt_iff_succ_le] at this
+      obtain ⟨k, eq⟩ := this
+      rw [succ_add] at eq
+      replace eq := succ_cancel eq
+      use k
+  intro m mge
+  have m_works : m₀ <= m ∧ m < (m++) := by
+    constructor
+    exact mge
+    exact succ_gt_self m
+  exact h (m++) m m_works
+
 
 /-- Exercise 2.2.6 (backwards induction)
     Compare with Mathlib's `Nat.decreasingInduction`. -/
 theorem Nat.backwards_induction {n:Nat} {P: Nat → Prop}
   (hind: ∀ m, P (m++) → P m) (hn: P n) :
     ∀ m, m ≤ n → P m := by
-  sorry
+    revert n; apply induction
+    · intro p0
+      intro m mle
+      obtain ⟨k, eq⟩ := mle
+      have := add_eq_zero m k eq.symm
+      rw [this.1]; exact p0
+    · intro n ih p_succ m mle
+      rcases (le_iff_lt_or_eq m (n++)).mp mle with h | h
+      · have pn := hind n p_succ
+        have : m <= n := by
+          obtain ⟨d, hd⟩ := (lt_iff_add_pos m (n++)).mp h
+          obtain ⟨c, succ, _⟩ := uniq_succ_eq d hd.1
+          have := hd.2
+          rw [← succ, add_succ] at this
+          have n_eq := succ_cancel this
+          use c
+        exact ih pn m this
+      · rw [h]; exact p_succ
+
 
 /-- Exercise 2.2.7 (induction from a starting point)
     Compare with Mathlib's `Nat.le_induction`. -/
 theorem Nat.induction_from {n:Nat} {P: Nat → Prop} (hind: ∀ m, P m → P (m++)) :
     P n → ∀ m, m ≥ n → P m := by
-  sorry
+    intro pn
+    have : ∀ k, k >= n -> P k := by
+      apply induction
+      · intro h0
+        rcases (le_iff_lt_or_eq n 0).mp h0 with h | h
+        contrapose! h
+        exact zero_le n
+        rw [← h]
+        exact pn
+      intro k ih succ_ge
+      rcases trichotomous k n with lt | temp
+      · have := (lt_iff_succ_le k n).mp lt
+        rcases (le_iff_lt_or_eq (k++) n).mp this with h1 | h1
+        · contrapose! h1; exact succ_ge
+        · rw [h1]; exact pn
+      · have ge : k >= n := by
+          contrapose! temp
+          exact ⟨temp.2, temp.1⟩
+        exact hind k (ih ge)
+    intro m mge
+    exact this m mge
+
+
 
 
 
