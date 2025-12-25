@@ -73,41 +73,24 @@ lemma toNat_inj {a b : Chapter2.Nat} (h : a.toNat = b.toNat) : a = b :=
 /-- The conversion preserves order. -/
 abbrev Chapter2.Nat.map_le_map_iff : ∀ {n m : Nat}, n.toNat ≤ m.toNat ↔ n ≤ m := by
   intro n m
-  induction' m with m ih
-  · constructor
+  constructor
+  · contrapose!
     intro h
-    rw [Nat.le_zero, ← zero_toNat] at h
-    have := toNat_inj h
-    rw [show zero = 0 from rfl, this]
-    intro h
+    obtain ⟨d, dpos, eq⟩ := (lt_iff_add_pos m n).mp h
+    replace eq := congrArg toNat eq
+    rw [map_add m d] at eq
+    have : d.toNat > 0 := by
+      contrapose! dpos
+      rw [le_zero_iff, ← zero_toNat] at dpos
+      have := toNat_inj dpos
+      rw [isPos_iff]
+      push_neg; exact this
+    linarith [this]
+  · intro h
     obtain ⟨k, eq⟩ := h
-    rw [show zero = 0 from rfl] at eq
-    have := add_eq_zero n k eq.symm
-    rw [show zero = 0 from rfl, this.1]
-  · rcases le_or_gt n m with le | gt
-    · have nat_le_step := Nat.le.step (ih.mpr le); dsimp at nat_le_step
-      have le_succ : n <= (m++) := by
-        obtain ⟨k, eq⟩ := le
-        use (k++)
-        rw [add_succ]
-        congr
-      have nat_le_succ : n.toNat <= (m++).toNat := by
-        rw [← succ_toNat m] at nat_le_step
-        exact nat_le_step
-      exact ⟨fun _ => le_succ, fun _ => nat_le_succ⟩
-    · have := by
-        have temp := (lt_iff_succ_le m n).mp gt
-        exact (le_iff_lt_or_eq (m++) n).mp temp
-      rcases this with lt | eq
-      · constructor
-        contrapose!; intro _
-        sorry
-        contrapose!; intro _; exact lt
-      · sorry
-
-
-
-
+    replace eq := congrArg toNat eq
+    rw [map_add n k] at eq
+    linarith
 
 abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
   toEquiv := equivNat
