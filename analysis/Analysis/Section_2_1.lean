@@ -48,6 +48,8 @@ instance Nat.instZero : Zero Nat := ⟨ zero ⟩
 /-- Axiom 2.2 (Successor of a natural number is a natural number) -/
 postfix:100 "++" => Nat.succ
 #check (fun n ↦ n++)
+#check (Nat.succ 0)
+#check (0++)
 
 
 /--
@@ -80,7 +82,8 @@ theorem Nat.succ_ne (n:Nat) : n++ ≠ 0 := by
 /-- Proposition 2.1.6 (4 is not equal to zero) -/
 theorem Nat.four_ne : (4:Nat) ≠ 0 := by
   -- By definition, 4 = 3++.
-  change 3++ ≠ 0
+  rw [show 4 = 3++ from rfl]
+  -- change 3++ ≠ 0
   -- By axiom 2.3, 3++ is not zero.
   exact succ_ne _
 
@@ -98,7 +101,7 @@ theorem Nat.succ_cancel {n m:Nat} (hnm: n++ = m++) : n = m := by
 theorem Nat.succ_ne_succ (n m:Nat) : n ≠ m → n++ ≠ m++ := by
   intro h
   contrapose! h
-  exact succ_cancel h
+  injection h
 
 /-- Proposition 2.1.8 (6 is not equal to 2) -/
 theorem Nat.six_ne_two : (6:Nat) ≠ 2 := by

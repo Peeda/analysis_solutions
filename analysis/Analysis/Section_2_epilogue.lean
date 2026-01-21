@@ -57,17 +57,40 @@ abbrev Chapter2.Nat.map_add : ∀ (n m : Nat), (n + m).toNat = n.toNat + m.toNat
   intro n m
   induction' n with n hn
   · rw [show zero = 0 from rfl, zero_add, _root_.Nat.zero_add]
-  sorry
+  rw [succ_add, succ_toNat, hn, succ_toNat]
+  ring
 
 /-- The conversion preserves multiplication. -/
 abbrev Chapter2.Nat.map_mul : ∀ (n m : Nat), (n * m).toNat = n.toNat * m.toNat := by
   intro n m
-  sorry
+  induction' n with n ih
+  rw [show zero = 0 from rfl, zero_mul, _root_.Nat.zero_mul]
+  rw [succ_mul, map_add, _root_.Nat.succ_mul, ih]
+
+lemma toNat_inj {a b : Chapter2.Nat} (h : a.toNat = b.toNat) : a = b :=
+  Chapter2.Nat.equivNat.injective h
 
 /-- The conversion preserves order. -/
 abbrev Chapter2.Nat.map_le_map_iff : ∀ {n m : Nat}, n.toNat ≤ m.toNat ↔ n ≤ m := by
   intro n m
-  sorry
+  constructor
+  · contrapose!
+    intro h
+    obtain ⟨d, dpos, eq⟩ := (lt_iff_add_pos m n).mp h
+    replace eq := congrArg toNat eq
+    rw [map_add m d] at eq
+    have : d.toNat > 0 := by
+      contrapose! dpos
+      rw [le_zero_iff, ← zero_toNat] at dpos
+      have := toNat_inj dpos
+      rw [isPos_iff]
+      push_neg; exact this
+    linarith [this]
+  · intro h
+    obtain ⟨k, eq⟩ := h
+    replace eq := congrArg toNat eq
+    rw [map_add n k] at eq
+    linarith
 
 abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
   toEquiv := equivNat
@@ -78,8 +101,9 @@ abbrev Chapter2.Nat.equivNat_ordered_ring : Chapter2.Nat ≃+*o ℕ where
 /-- The conversion preserves exponentiation. -/
 lemma Chapter2.Nat.pow_eq_pow (n m : Chapter2.Nat) :
     n.toNat ^ m.toNat = (n^m).toNat := by
-  sorry
-
+    induction' m with m ih
+    rw [show zero = 0 from rfl, pow_zero, _root_.Nat.pow_zero]
+    rw [pow_succ, _root_.pow_succ, ih, map_mul]
 
 /-- The Peano axioms for an abstract type `Nat` -/
 @[ext]
